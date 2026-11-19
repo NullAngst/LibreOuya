@@ -16,10 +16,10 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends shellcheck devscripts mksh jq
+          sudo apt-get install -y --no-install-recommends shellcheck devscripts mksh jq whiptail dialog python3-pexpect
 
       - name: Lint PC-side scripts
-        run: shellcheck -x libreouya tests/run.sh tests/fakebin/adb tests/fakebin/fastboot
+        run: shellcheck -x LibreOuya.sh LibreOuyaTUI.sh tests/run.sh tests/fakebin/adb tests/fakebin/fastboot
 
       - name: Lint device-side scripts (they run under the OUYA's mksh)
         run: |
@@ -31,3 +31,12 @@ jobs:
       - name: Tests
         # Called through bash because files uploaded through the web UI lose the exec bit.
         run: bash tests/run.sh
+
+      - name: Plain list walk-through
+        run: python3 tests/tui_test.py list
+
+      - name: TUI walk-through (whiptail)
+        run: python3 tests/tui_test.py whiptail
+
+      - name: TUI walk-through (dialog)
+        run: python3 tests/tui_test.py dialog
