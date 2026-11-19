@@ -2,6 +2,11 @@
 
 LibreOuya is a set of bash scripts that turn an OUYA into an open Android box from your Linux PC over adb: rooted, sideloading APKs, running RetroArch and light games, with the old store, custom recovery and custom ROMs as opt-in extras.
 
+Two ways to run it, same options in both:
+
+- `./LibreOuya.sh` prints a numbered list of every option in the terminal. Type a number, answer the questions.
+- `./LibreOuyaTUI.sh` shows the same list as a whiptail (or dialog) menu, with every question in a dialog box.
+
 Every step asks before it does anything. Steps that can brick the box sit behind a typed `RISKY` or `DANGEROUS`. Nothing runs on its own.
 
 ## What it does
@@ -22,20 +27,22 @@ What it does not do: unlock purchased games, download ROMs or games for you, or 
 - A USB keyboard for the OUYA, only for firmware installs and recovery menus.
 - Ethernet on the OUYA if you can. Its Wi-Fi works, but people have far fewer problems wired.
 - A PC with bash 4.4 or newer, `adb`, `fastboot`, `curl`, `jq` and `unzip`.
+- For the TUI: `whiptail` or `dialog`. Kubuntu and most Debian-based systems have whiptail already.
 
 I'm on Kubuntu, so in my case that's:
 
 ```
-sudo apt install adb fastboot curl jq unzip
+sudo apt install adb fastboot curl jq unzip whiptail
 ```
 
-It depends on your system: `android-tools` on Arch and Fedora, `android-tools` from Homebrew on macOS (plus `brew install bash`, since macOS ships bash 3.2), or whichever your package manager calls it. No adb package at all? `bash libreouya get-platform-tools` downloads Google's into the cache.
+It depends on your system: `android-tools` on Arch and Fedora, `android-tools` from Homebrew on macOS (plus `brew install bash`, since macOS ships bash 3.2), or whichever your package manager calls it. No adb package at all? `./LibreOuya.sh get-platform-tools` downloads Google's into the cache.
 
 ## Install
 
 1. Get the files: `git clone` the repo, or download and unpack the release tarball.
 2. `cd LibreOuya`
-3. `bash libreouya doctor` to check the PC side. (`chmod +x libreouya` once if you'd rather type `./libreouya`; uploads through GitHub's web UI drop the exec bit.)
+3. `chmod +x LibreOuya.sh LibreOuyaTUI.sh`, since uploads through GitHub's web UI drop the exec bit. (Or run them as `bash LibreOuya.sh`.)
+4. `./LibreOuya.sh doctor` to check the PC side.
 
 ### Linux USB permissions
 
@@ -51,24 +58,44 @@ sudo udevadm control --reload-rules
 
 `2836` is the OUYA's vendor ID in Android, `0955` is NVIDIA's, which the Tegra uses in fastboot. Check yours with `lsusb` with the OUYA plugged in, since I couldn't confirm both on real hardware.
 
+## The two front ends
+
+### `./LibreOuya.sh`: the list
+
+Run it with no arguments and you get every option, numbered and grouped (Start here, Firmware, Setup wizard, Root, Apps and games, Tweaks, Backup and logs, the two optional toggles, RISKY, DANGEROUS). Type a number and Enter. Questions are `[y/N]`, so Enter alone means no. After each step it waits for Enter and shows the list again. `q` quits.
+
+### `./LibreOuyaTUI.sh`: the TUI
+
+Same list, same steps, drawn with whiptail (or dialog if that's what you have; `LIBREOUYA_TUI=dialog ./LibreOuyaTUI.sh` picks it when both are installed).
+
+- Arrow keys move, Enter picks. The list starts on the step you last ran.
+- Every question opens a box that also shows what the step printed since the last question, so "Write this hosts file?" shows you the file. Questions start on No; press Left (or Tab) to reach Yes. Same safe default as the list.
+- RISKY and DANGEROUS steps open a box where you type the word.
+- When a step finishes, its full output opens in a scrollable box. Enter goes back to the menu.
+- Long running output (downloads, sideload progress) prints to the terminal behind the boxes while it runs.
+
+Both take the same options: `-n` for a dry run, `-s SERIAL` for a device. Dry run and the device can also be switched from the list itself.
+
 ## First run on a fresh OUYA
 
 1. Plug in the cable and power the OUYA on. adb is enabled on an OUYA out of the box. If not, it's under Manage > System > Development.
-2. `bash libreouya status` to see what you've got: firmware, su, store config, hosts entries.
-3. `bash libreouya setup` walks through the rest one question at a time, or do the steps by hand:
-4. `bash libreouya firmware` checks for 1.2.1427 and offers the update if it's older, since anything below 1.0.138 ignores the store config file entirely.
-5. `bash libreouya oobe` gets a freshly reset box past the setup wizard's network screen. Do this BEFORE pairing a controller on a fresh flash; people who pair first report setup going sideways.
-6. `bash libreouya root` swaps in a Superuser-compatible su so apps can ask for root, and installs the Superuser app.
-7. `bash libreouya retroarch`, then `bash libreouya bundle essentials`, `bundle media`, `bundle games` for a file manager, launcher, browser, VLC and some light games.
-8. `bash libreouya backup` saves device info and the boot and recovery partitions to your PC. Worth doing before anything RISKY.
+2. Start `./LibreOuyaTUI.sh` or `./LibreOuya.sh` and pick "Show OUYA status" to see what you've got: firmware, su, store config, hosts entries.
+3. "Guided setup" walks through the rest one question at a time. Or pick the steps yourself, in this order:
+4. "Check firmware" checks for 1.2.1427 and offers the update if it's older, since anything below 1.0.138 ignores the store config file entirely.
+5. "Get past the setup wizard network check" gets a freshly reset box past the network screen. Do this BEFORE pairing a controller on a fresh flash; people who pair first report setup going sideways.
+6. "Root" swaps in a Superuser-compatible su so apps can ask for root, and installs the Superuser app.
+7. "Install RetroArch", then "Install an app bundle" for the essentials (file manager, launcher, browser), media (VLC) and games bundles.
+8. "Back up device info, boot and recovery images" saves them to your PC. Worth doing before anything RISKY.
 
-Add `-n` to any command for a dry run: it prints every command and every device job, and changes nothing. The only thing it still writes is a small su probe file in `/data/local/tmp/libreouya`.
+Everything in the menus is also a command, for scripts or quick jobs: `./LibreOuya.sh status`, `./LibreOuya.sh root`, `./LibreOuya.sh dns update` and so on. Commands still ask their questions. `./LibreOuyaTUI.sh root` runs one command with TUI boxes.
+
+Add `-n` for a dry run: it prints every command and every device job, and changes nothing. The only thing it still writes is a small su probe file in `/data/local/tmp/libreouya`.
 
 Logs of every run, including every command and every answer you gave, land in `~/.local/state/libreouya/runs/`.
 
 ## Commands
 
-`bash libreouya -h` has the full list. With no command you get a menu.
+`./LibreOuya.sh -h` has the full list. With no command you get the menu.
 
 | Command | Does |
 | --- | --- |
@@ -88,7 +115,7 @@ Logs of every run, including every command and every answer you gave, land in `~
 | `recovery boot\|flash\|restore`, `rom ZIP...` | RISKY |
 | `pmos-boot IMG`, `uboot` | DANGEROUS |
 
-Options: `-s SERIAL` picks a device when more than one is attached, `-n` is a dry run, `-a` allows a device that doesn't identify as an OUYA.
+Options: `-s SERIAL` picks a device when more than one is attached, `-n` is a dry run, `-a` allows a device that doesn't identify as an OUYA, `-t` is TUI mode (what `LibreOuyaTUI.sh` does).
 
 ## How it works on the box
 
@@ -151,10 +178,10 @@ Bundles live in `bundles/*.list`. Each line is `fdroid <package>[|<fallback>...]
 
 The OUYA can answer DNS for your LAN with a blocklist, using the dnsmasq that Android already includes for Wi-Fi tethering. It's a fun use for an old box.
 
-1. `bash libreouya initd on` if you want it to start at boot (optional, but without it you start it by hand after each reboot).
-2. `bash libreouya dns setup` installs it to `/data/local/libreouya/dns`, asks for upstream servers and cache size, builds the blocklist and starts it.
+1. "Boot-time scripts (init.d): on" (`./LibreOuya.sh initd on`) if you want it to start at boot (optional, but without it you start it by hand after each reboot).
+2. "Set up the DNS blocker" (`./LibreOuya.sh dns setup`) installs it to `/data/local/libreouya/dns`, asks for upstream servers and cache size, builds the blocklist and starts it.
 3. Give the OUYA a fixed address with a DHCP reservation on your router, wired if possible.
-4. `bash libreouya dns test` queries it from your PC.
+4. "Test the OUYA's DNS from this PC" (`./LibreOuya.sh dns test`) queries it from your PC.
 5. Point a client, or your router's DNS, at the OUYA's address.
 
 ### Adding blocklists
@@ -166,7 +193,7 @@ https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
 https://example.org/another-list.txt
 ```
 
-Hosts-format lists (`0.0.0.0 domain` or `127.0.0.1 domain`), plain domain-per-line lists and adblock-style `||domain^` lines all work. Domains you never want blocked go in `~/.config/libreouya/allowlist.txt`, one per line. After editing either file, run `bash libreouya dns update`; it downloads every list, merges and dedupes them on your PC, pushes the result and tells dnsmasq to reload.
+Hosts-format lists (`0.0.0.0 domain` or `127.0.0.1 domain`), plain domain-per-line lists and adblock-style `||domain^` lines all work. Domains you never want blocked go in `~/.config/libreouya/allowlist.txt`, one per line. After editing either file, run "Rebuild and push the blocklist" (`./LibreOuya.sh dns update`); it downloads every list, merges and dedupes them on your PC, pushes the result and tells dnsmasq to reload.
 
 Other controls: `dns start`, `dns stop`, `dns restart`, `dns status`, `dns remove`. Settings are in `/data/local/libreouya/dns/dns.conf` on the OUYA (`UPSTREAMS`, `CACHE`, `EXTRA`). If dnsmasq won't stay up, try `EXTRA=""` there.
 
@@ -194,7 +221,7 @@ A ROM gives you a newer WebView and apps that need API 19 or 21. It costs you th
 
 `pmos-boot boot.img` boots a postmarketOS image built with `pmbootstrap` for `ouya-ouya` using `fastboot boot`. Nothing is written; power-cycling returns to Android. Older reports say HDMI and a USB keyboard work on it, and Wi-Fi and the GPU don't.
 
-Replacing the bootloader with mainline U-Boot erases the whole eMMC, stops stock Android from booting, and needs your device's secure boot key, a testpad on the board, and the fusee-tools and re-crypt projects. LibreOuya documents it (`bash libreouya uboot`) and stops there. Read the [U-Boot OUYA page](https://docs.u-boot-project.org/en/latest/board/ouya/ouya.html) if you want to go that far.
+Replacing the bootloader with mainline U-Boot erases the whole eMMC, stops stock Android from booting, and needs your device's secure boot key, a testpad on the board, and the fusee-tools and re-crypt projects. LibreOuya documents it (`./LibreOuya.sh uboot`) and stops there. Read the [U-Boot OUYA page](https://docs.u-boot-project.org/en/latest/board/ouya/ouya.html) if you want to go that far.
 
 ## Rolling back
 
@@ -219,7 +246,7 @@ Replacing the bootloader with mainline U-Boot erases the whole eMMC, stops stock
 - **A Superuser prompt on the TV:** allow it; on a rooted box, the shell has to ask like any app.
 - **Stuck on "Unable to connect" during setup:** run `oobe`, then press Continue on the OUYA. If an old guide put `178.254.13.17` in your hosts file, `oobe` replaces it.
 - **Store installs nothing:** reboot once after `store on` during first-run setup.
-- **Anything else:** `bash libreouya logs` saves a snapshot to your PC. Nothing is uploaded anywhere.
+- **Anything else:** "Save a log snapshot" (`./LibreOuya.sh logs`) saves a snapshot to your PC. Nothing is uploaded anywhere.
 
 ## Credits
 
@@ -229,7 +256,7 @@ Christian Weiske's stouyapi and louyapi keep the OUYA store alive. The OUYA Savi
 
 Nothing gets built, so a release is just a tag:
 
-1. Add an entry to `changes.md` and bump `LO_VERSION` in `libreouya` (minor bump, like 1.0.0 to 1.1.0).
+1. Add an entry to `changes.md` and bump `LO_VERSION` in `LibreOuya.sh` (minor bump, like 1.0.0 to 1.1.0).
 2. Push to main and check the `checks` workflow passed.
 3. On GitHub, go to Releases, draft a new release, create a new tag (like `v1.1.0`) on main, and publish it. GitHub attaches the source tarballs itself.
 

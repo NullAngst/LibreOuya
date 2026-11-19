@@ -1,8 +1,20 @@
 # Changes
 
+2026.11.18 - UX overhaul
+
+* `libreouya` is now `LibreOuya.sh`, which shows a numbered list of every option, grouped by section, when run with no arguments
+* New `LibreOuyaTUI.sh`: the same options in a whiptail or dialog menu; `LIBREOUYA_TUI=dialog` picks dialog when both are installed
+* One shared menu table (`lib/menu.sh`) feeds both front ends, so they always offer the same steps; entries now include every subcommand, the reboot targets, all DNS controls, device selection and a dry run switch
+* In the TUI every question, chooser, value prompt and typed RISKY/DANGEROUS word is a dialog box that also shows what the step printed since the last question, and each finished step opens its full output in a scrollable box
+* Questions still default to No in both front ends; the TUI starts on the No button and the result box starts on "Back to menu"
+* Steps run in a subshell so a failed step returns to the menu instead of exiting
+* Tests: every menu entry must map to a real command, both front ends fail closed without a terminal, and a pexpect walk-through drives the TUI under whiptail and dialog in CI
+
+Reasons for changes: running everything from one interactive list or TUI is easier than remembering subcommands, and keeping both front ends on one table stops them drifting apart.
+
 2026.11.18 - Initial release
 
-* `libreouya` entry script with a menu, a guided `setup` path and subcommands
+* Entry script with a menu, a guided `setup` path and subcommands
 * Every step asks first; RISKY and DANGEROUS steps need a typed word; `-n` dry run prints every command and device job without running them
 * OUYA detection by model, refusal on other devices unless `-a`, `-s` required when more than one device is attached
 * adb plumbing for Android 4.1: sentinel exit codes, CRLF stripping, su method detection (stdin, `-c`, AOSP form), device jobs pushed as files

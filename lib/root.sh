@@ -34,7 +34,7 @@ cmd_status() {
 	elif [ "$LO_FW" = "$LO_FW_LATEST" ]; then
 		ok "Firmware: $LO_FW (latest)"
 	else
-		warn "Firmware: $LO_FW, latest is $LO_FW_LATEST. See: ./libreouya firmware"
+		warn "Firmware: $LO_FW, latest is $LO_FW_LATEST. See: ./LibreOuya.sh firmware"
 	fi
 	say "Kernel: $(dsh 'cat /proc/version' | cut -c 1-60)"
 	su=$(su_md5)
@@ -53,7 +53,7 @@ cmd_status() {
 	hosts=$(dsh 'cat /system/etc/hosts' | grep -E 'devs\.ouya\.tv|status\.ouya\.tv|ouya-updates' || true)
 	if [ -n "$hosts" ]; then
 		say "hosts entries:"
-		printf '%s\n' "$hosts" | sed 's/^/    /'
+		printf '%s\n' "$hosts" | say_lines '    '
 	else
 		say "hosts entries: none for OUYA servers (the setup wizard check will fail on a fresh box)"
 	fi
@@ -74,11 +74,11 @@ cmd_root() {
 	if ! detect_su; then
 		err "su does not work from adb shell, so there is no way in to replace it."
 		say "A stock OUYA's su works from adb out of the box. If this one does not, reflash with:"
-		say "  ./libreouya flash-stock"
+		say "  ./LibreOuya.sh flash-stock"
 		return 1
 	fi
 	say "This replaces /system/xbin/su with a Superuser-compatible build so apps can ask for root."
-	say "The current su is saved to $LO_DEV_SD/backup/xbin_su.orig first, and ./libreouya unroot puts it back."
+	say "The current su is saved to $LO_DEV_SD/backup/xbin_su.orig first, and ./LibreOuya.sh unroot puts it back."
 	ask "Root this OUYA?" || return 0
 	choice=$(choose "Which su binary?" \
 		"Koush su bundled with LibreOuya (from OUYA-ReRoot, recommended)" \
@@ -106,7 +106,7 @@ EOF
 			out=$(dsh 'echo id | su' 2>&1) || true
 			ok "Root works after the swap: ${out%%$'\n'*}"
 		else
-			err "su no longer answers. Roll back with: ./libreouya unroot"
+			err "su no longer answers. Roll back with: ./LibreOuya.sh unroot"
 			return 1
 		fi
 	fi
@@ -242,7 +242,8 @@ cmd_logcat() {
 	need_device
 	f=$LO_RUN/logcat-live.txt
 	cfg=$(mktemp "${TMPDIR:-/tmp}/libreouya-cfg.XXXXXX") || die "mktemp failed"
-	if dsh 'cat /sdcard/ouya_config.properties' >"$cfg" 2>/dev/null && [ -s "$cfg" ]; then
+	dsh 'cat /sdcard/ouya_config.properties 2>/dev/null' >"$cfg" 2>/dev/null || true
+	if grep -q '^OUYA_SERVER_URL=' "$cfg"; then
 		had_cfg=1
 	fi
 	if [ "$had_cfg" = 1 ] && ask "Add DEBUG=1 to ouya_config.properties for more detail while capturing? (removed afterwards)"; then

@@ -6,7 +6,10 @@ A check-up to run every couple of months. Most of what LibreOuya depends on is f
 
 ```
 bash tests/run.sh
-shellcheck -x libreouya tests/run.sh tests/fakebin/adb tests/fakebin/fastboot
+python3 tests/tui_test.py whiptail   # needs pexpect (python3-pexpect)
+python3 tests/tui_test.py dialog
+python3 tests/tui_test.py list
+shellcheck -x LibreOuya.sh LibreOuyaTUI.sh tests/run.sh tests/fakebin/adb tests/fakebin/fastboot
 shellcheck -s sh device/lib.sh device/dns.sh
 checkbashisms device/lib.sh device/dns.sh
 ```
@@ -72,9 +75,13 @@ The fields used are `file.name`, `file.sha256`, `file.size`, `manifest.versionCo
 
 ## 7. adb and platform-tools
 
-New platform-tools releases occasionally change how `adb install` or `adb sideload` talk to old devices. LibreOuya installs with `push` + `pm install` to stay clear of that, but after a platform-tools update, run `bash libreouya -n status` against a real OUYA and one real `install` to confirm.
+New platform-tools releases occasionally change how `adb install` or `adb sideload` talk to old devices. LibreOuya installs with `push` + `pm install` to stay clear of that, but after a platform-tools update, run `./LibreOuya.sh -n status` against a real OUYA and one real `install` to confirm.
 
-## 8. Hardware checklist (whenever there's a real OUYA to test on)
+## 8. whiptail and dialog
+
+Both change slowly, but after a distro upgrade run `tests/tui_test.py` for each. The two behaviours the TUI depends on: whiptail's `--scrolltext` boxes only take Enter when focus starts on a button (hence `--defaultno` on the result and pause boxes), and item text starting with `--` is read as an option (hence the `== Section ==` headers).
+
+## 9. Hardware checklist (whenever there's a real OUYA to test on)
 
 Run these in order on a box you don't mind reflashing, and note the results in `changes.md` when anything changes:
 
@@ -90,6 +97,6 @@ Run these in order on a box you don't mind reflashing, and note the results in `
 10. `recovery boot` (writes nothing), then `recovery flash` and `recovery restore`.
 11. `lsusb` in Android and in fastboot mode: confirm the vendor IDs in the README's udev rule (`2836` and `0955`).
 
-## 9. Release
+## 10. Release
 
-Bump `LO_VERSION` in `libreouya` (minor version, 1.0.0 to 1.1.0), add a `changes.md` entry in the usual format, then follow "Making a release" in the README.
+Bump `LO_VERSION` in `LibreOuya.sh` (minor version, 1.0.0 to 1.1.0), add a `changes.md` entry in the usual format, then follow "Making a release" in the README.

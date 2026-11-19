@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# LibreOuya: turn an OUYA into an open Android box from a PC over adb.
+# Every step asks first. RISKY and DANGEROUS steps need a typed word.
+# License: GPL-3.0-or-later. See README.md.
+
+set -euo pipefail
+
+LO_VERSION=1.1.0
+LO_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P) || exit 1
+LO_DRY=0
+LO_ANY_DEVICE=0
+LO_SERIAL=${ANDROID_SERIAL:-}
+LO_STATE_NOW=''
+
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]}" -lt 4 ] ||
+	{ [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -lt 4 ]; }; then
+	printf 'LibreOuya.sh needs bash 4.4 or newer (this is %s).\n' "${BASH_VERSION:-unknown}" >&2
+	exit 1
+fi
+
+# shellcheck source=lib/ui.sh
+. "$LO_ROOT/lib/ui.sh"
+# shellcheck source=lib/core.sh
+. "$LO_ROOT/lib/core.sh"
+# shellcheck source=lib/device.sh
+. "$LO_ROOT/lib/device.sh"
+# shellcheck source=lib/fetch.sh
+. "$LO_ROOT/lib/fetch.sh"
+# shellcheck source=lib/root.sh
+. "$LO_ROOT/lib/root.sh"
+# shellcheck source=lib/net.sh
+. "$LO_ROOT/lib/net.sh"
+# shellcheck source=lib/firmware.sh
+. "$LO_ROOT/lib/firmware.sh"
+# shellcheck source=lib/apps.sh
+. "$LO_ROOT/lib/apps.sh"
+# shellcheck source=lib/tweaks.sh
+. "$LO_ROOT/lib/tweaks.sh"
+# shellcheck source=lib/dns.sh
+. "$LO_ROOT/lib/dns.sh"
+# shellcheck source=lib/risky.sh
+. "$LO_ROOT/lib/risky.sh"
+# shellcheck source=lib/menu.sh
+. "$LO_ROOT/lib/menu.sh"
+
+usage() {
+	cat <<EOF
+LibreOuya $LO_VERSION: root and open up an OUYA over adb. Every step asks first.
+
+Usage: ./LibreOuya.sh [options] [command] [args]
+       ./LibreOuya.sh            no command: numbered list of every option
+       ./LibreOuyaTUI.sh         the same options in a whiptail/dialog TUI
+
+Options:
+  -s SERIAL   use this adb device (needed when more than one is attached)
+  -n          dry run: show every command and device job, change nothing
+  -t          TUI mode (what LibreOuyaTUI.sh uses)
+  -a          allow devices that do not identify as an OUYA (--any-device)
+  -h          this help
+  -V          version
+
+Getting going:
+  setup                 guided path for a fresh OUYA, one question at a time
+  status                what is on the OUYA right now
+  doctor                check this PC for the tools LibreOuya uses
+  get-platform-tools    download Google's adb and fastboot into the cache
+  connect IP            adb over the network
+
+Core:
+  firmware              check the firmware, offer the update to 1.2.1427
+  flash-stock           install 1.2.1427 through recovery sideload
+  oobe                  get a fresh OUYA past the setup wizard's network check
+  root | unroot         swap su for a Superuser build, or put the original back
+  install APK|DIR ...   install APKs
+  bundle [NAME]         install a curated set from F-Droid (no name: list them)
+  retroarch             install RetroArch
+  push-roms DIR SYSTEM  copy your games to /sdcard/RetroArch/roms/SYSTEM
+  push-bios DIR         copy BIOS files to /sdcard/RetroArch/system
+  netadb on|off         permanent network adb
+  initd on|off          boot-time script support
+  swap on|off           swap file on a USB stick (needs BusyBox on the OUYA)
+  hosts show|restore    view or roll back /system/etc/hosts
+  backup                device info, boot and recovery images, LibreOuya backups
+  logs                  snapshot of logcat, getprop, dmesg to this PC
+  logcat                live logcat
+  shell                 adb shell
+  reboot [recovery|bootloader]
+
+Optional:
+  store on|off          community store (ouya.cweiske.de, louyapi or your own)
+  dns setup|update|start|stop|restart|status|test|remove
+                        LAN DNS blocker on the OUYA's built-in dnsmasq
+
+RISKY (typed confirmation):
+  recovery boot|flash|restore [IMG]   custom recovery (CWM 6.0.3.2 bundled)
+  rom ZIP [ZIP...]                    sideload ROM zips through CWM
+
+DANGEROUS (typed confirmation):
+  pmos-boot BOOT.IMG    fastboot boot a postmarketOS image (nothing written)
+  uboot                 notes on replacing the bootloader (not automated)
+
+Logs of every run: ${XDG_STATE_HOME:-~/.local/state}/libreouya/runs/
+EOF
+}
+
+cmd_doctor() {
+	local c
+	heading "This PC"
+	say "bash $BASH_VERSION"
+	for c in adb fastboot curl jq unzip awk sed grep sort mktemp; do
+		if command -v "$c" >/dev/null 2>&1; then
+			ok "$c: $(command -v "$c")"
+		else
+			case $c in
+			adb | fastboot) warn "$c: missing (package manager, or ./LibreOuya.sh get-platform-tools)" ;;
+			jq) warn "jq: missing (needed for bundles and the F-Droid RetroArch build)" ;;
+			unzip) warn "unzip: missing (only needed for get-platform-tools)" ;;
+			*) err "$c: missing" ;;
+			esac
+		fi
+	done
+	need_hash_tools
+	ok "hash tools present"
+	if [ "$(uname -s)" = Linux ]; then
+		say "Linux USB access: see the udev section of the README if adb shows 'no permissions'."
+	fi
+}
+
+cmd_shell() {
+	need_device
+	show_cmd adb -s "$LO_SERIAL" shell
+	adb_dev_tty shell
+}
+
+cmd_reboot() {
+	need_device
+	case ${1:-} in
+	'') reboot_device ;;
+	recovery | bootloader)
+		ask "Reboot the OUYA into $1?" || return 0
+		act adb_dev reboot "$1"
+		;;
+	*) die "usage: LibreOuya.sh reboot [recovery|bootloader]" ;;
+	esac
+}
+
+# Guided path for a fresh or unknown OUYA. Each step is its own question.
+cmd_setup() {
+	heading "Guided setup"
+	say "Each step below asks before it does anything. Say no to skip a step."
+	cmd_status || return 1
+	if ask "Step 1: check the firmware version?"; then cmd_firmware || true; fi
+	if ask "Step 2: get past the setup wizard's network check (only matters on a fresh box)?"; then cmd_oobe || true; fi
+	if ask "Step 3: root (Superuser su + manager app)?"; then cmd_root || true; fi
+	if ask "Step 4: install RetroArch?"; then cmd_retroarch || true; fi
+	if ask "Step 5: install app bundles (file manager, launcher, browser, media, games)?"; then
+		local b
+		for b in "$LO_ROOT"/bundles/*.list; do
+			b=$(basename -- "$b" .list)
+			if ask "  Bundle '$b'?"; then cmd_bundle "$b" || true; fi
+		done
+	fi
+	if ask "Step 6: permanent network adb?"; then cmd_netadb on || true; fi
+	if ask "Step 7 (optional): community store?"; then cmd_store on || true; fi
+	if ask "Step 8: back up device info and boot/recovery images to this PC?"; then cmd_backup || true; fi
+	ok "Guided setup finished. Run ./LibreOuya.sh status any time."
+}
+
+dispatch() {
+	local cmd=${1:-}
+	[ "$#" -gt 0 ] && shift
+	log "command: $cmd $*"
+	case $cmd in
+	'') if [ "$LO_UI" = tui ]; then menu_tui; else menu_list; fi ;;
+	help | -h | --help) usage ;;
+	setup) cmd_setup ;;
+	status) cmd_status ;;
+	doctor) cmd_doctor ;;
+	get-platform-tools) get_platform_tools ;;
+	connect) cmd_connect "$@" ;;
+	firmware) cmd_firmware ;;
+	flash-stock) cmd_flash_stock ;;
+	oobe) cmd_oobe ;;
+	root) cmd_root ;;
+	unroot) cmd_unroot ;;
+	install) cmd_install "$@" ;;
+	bundle) cmd_bundle "$@" ;;
+	retroarch) cmd_retroarch ;;
+	push-roms) cmd_push_roms "$@" ;;
+	push-bios) cmd_push_bios "$@" ;;
+	netadb) cmd_netadb "$@" ;;
+	initd) cmd_initd "$@" ;;
+	swap) cmd_swap "$@" ;;
+	hosts) cmd_hosts "$@" ;;
+	backup) cmd_backup ;;
+	logs) cmd_logs ;;
+	logcat) cmd_logcat ;;
+	shell) cmd_shell ;;
+	reboot) cmd_reboot "$@" ;;
+	store) cmd_store "$@" ;;
+	dns) cmd_dns "$@" ;;
+	recovery) cmd_recovery "$@" ;;
+	rom) cmd_rom "$@" ;;
+	pmos-boot) cmd_pmos_boot "$@" ;;
+	uboot) cmd_uboot ;;
+	*) err "unknown command: $cmd"; usage >&2; return 1 ;;
+	esac
+}
+
+main() {
+	local opt
+	local tui=0
+	while getopts ':s:nathV' opt; do
+		case $opt in
+		s) LO_SERIAL=$OPTARG ;;
+		n) LO_DRY=1 ;;
+		t) tui=1 ;;
+		a) LO_ANY_DEVICE=1 ;;
+		h) usage; exit 0 ;;
+		V) printf 'LibreOuya %s\n' "$LO_VERSION"; exit 0 ;;
+		:) printf 'LibreOuya.sh: -%s needs a value\n' "$OPTARG" >&2; exit 1 ;;
+		*) printf 'LibreOuya.sh: unknown option -%s (try -h)\n' "$OPTARG" >&2; exit 1 ;;
+		esac
+	done
+	shift $((OPTIND - 1))
+	lo_init_colors
+	lo_init_paths
+	[ "$tui" = 1 ] && tui_init
+	need_cmds awk sed grep sort tr cut wc mktemp curl
+	need_hash_tools
+	log "LibreOuya $LO_VERSION, args: $*"
+	[ "$LO_DRY" = 1 ] && warn "dry run: nothing on the OUYA or this PC's cache will change"
+	dispatch "$@"
+}
+
+main "$@"

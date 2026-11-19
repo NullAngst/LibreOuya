@@ -7,7 +7,7 @@ cmd_firmware() {
 	heading "Firmware"
 	if [ -z "$LO_FW" ]; then
 		warn "could not read the firmware version from build props (build: $LO_BUILD)"
-		say "Check Manage > System on the OUYA. If it is not $LO_FW_LATEST, run: ./libreouya flash-stock"
+		say "Check Manage > System on the OUYA. If it is not $LO_FW_LATEST, run: ./LibreOuya.sh flash-stock"
 		return 0
 	fi
 	if [ "$LO_FW" = "$LO_FW_LATEST" ]; then
@@ -17,7 +17,7 @@ cmd_firmware() {
 	if ver_ge "$LO_FW" "$LO_FW_LATEST"; then
 		warn "This OUYA reports $LO_FW, newer than the last official $LO_FW_LATEST."
 		say "Unreleased 1.2.1858 builds exist and break things; stock recovery will not go back down."
-		say "Going back needs CWM (see ./libreouya recovery) and is not automated."
+		say "Going back needs CWM (see ./LibreOuya.sh recovery) and is not automated."
 		return 0
 	fi
 	warn "This OUYA runs $LO_FW. The last official firmware is $LO_FW_LATEST."
@@ -30,7 +30,6 @@ cmd_firmware() {
 }
 
 cmd_flash_stock() {
-	local reply
 	pick_device
 	heading "Install official firmware $LO_FW_LATEST"
 	if [ "$LO_STATE_NOW" = device ]; then
@@ -38,13 +37,9 @@ cmd_flash_stock() {
 		is_ouya || [ "$LO_ANY_DEVICE" = 1 ] || die "$LO_SERIAL is not an OUYA ($LO_MODEL)"
 		say "Current firmware: ${LO_FW:-unknown}"
 	fi
-	say "You need a USB keyboard plugged into the OUYA for the recovery menu."
-	say "Installing over an older firmware keeps your data. The optional factory reset at the end WIPES"
-	say "EVERYTHING ON THE OUYA: apps, saves, settings."
-	printf 'Type FLASH to continue: '
-	read_tty reply || reply=''
-	log "FLASH confirm -> $reply"
-	[ "$reply" = FLASH ] || { say "Cancelled."; return 0; }
+	confirm_word FLASH "You need a USB keyboard plugged into the OUYA for the recovery menu.
+Installing over an older firmware keeps your data. The optional factory reset at the end
+WIPES EVERYTHING ON THE OUYA: apps, saves, settings." || { say "Cancelled."; return 0; }
 	if [ "$LO_STATE_NOW" = device ] && ask "Run a backup first (device info, boot/recovery images)?"; then
 		cmd_backup || warn "backup had problems, continuing is your call"
 		ask "Continue with the firmware install?" || return 0
@@ -76,6 +71,6 @@ cmd_flash_stock() {
 	say "Then 'reboot system now'."
 	say ""
 	say "Next on a freshly reset OUYA, in this order:"
-	say "  ./libreouya oobe     (get past the network check)"
+	say "  ./LibreOuya.sh oobe     (get past the network check)"
 	say "  then pair the controller, then root and the rest."
 }

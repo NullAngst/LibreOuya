@@ -21,7 +21,7 @@ find_adb() {
 	else
 		err "adb not found"
 		say "Install it from your package manager (android-tools, android-sdk-platform-tools,"
-		say "or whichever your distro calls it), or run: ./libreouya get-platform-tools"
+		say "or whichever your distro calls it), or run: ./LibreOuya.sh get-platform-tools"
 		exit 1
 	fi
 	if [ -z "${LO_FASTBOOT:-}" ]; then
@@ -37,7 +37,7 @@ find_adb() {
 
 need_fastboot() {
 	find_adb
-	[ -n "$LO_FASTBOOT" ] || die "fastboot not found (same package as adb on most systems, or ./libreouya get-platform-tools)"
+	[ -n "$LO_FASTBOOT" ] || die "fastboot not found (same package as adb on most systems, or ./LibreOuya.sh get-platform-tools)"
 }
 
 adb_raw() {
@@ -97,7 +97,7 @@ pick_device() {
 	if [ "$count" -eq 0 ]; then
 		err "no device found by adb"
 		say "Check: OUYA powered on, micro USB DATA cable (not charge-only), and on Linux the udev"
-		say "rule from the README. Network adb: ./libreouya connect <ouya-ip>"
+		say "rule from the README. Network adb: ./LibreOuya.sh connect <ouya-ip>"
 		exit 1
 	fi
 	if [ "$count" -gt 1 ]; then
@@ -275,10 +275,10 @@ root_job() {
 		printf 'lo_ok\n'
 	} >"$job"
 	say "Device job: $desc"
-	sed 's/^/    | /' "$job"
+	say_lines '    | ' <"$job"
 	log "job body: $(cat "$job")"
 	if [ "$LO_DRY" = 1 ]; then
-		printf '  (dry run, not executed)\n'
+		say "  (dry run, not executed)"
 		rm -f -- "$job"
 		return 0
 	fi
@@ -292,7 +292,7 @@ root_job() {
 	dashc) out=$(dsh "su -c 'sh $LO_DEV_TMP/job.sh'" 2>&1) || true ;;
 	aosp) out=$(dsh "su 0 sh $LO_DEV_TMP/job.sh" 2>&1) || true ;;
 	esac
-	printf '%s\n' "$out" | sed -n 's/^LO_INFO: /    /p'
+	printf '%s\n' "$out" | sed -n 's/^LO_INFO: //p' | say_lines '    '
 	case $out in
 	*LO_FAIL:*)
 		err "device job failed: $(printf '%s\n' "$out" | sed -n 's/^LO_FAIL: //p' | head -n 1)"
@@ -301,7 +301,7 @@ root_job() {
 	*LO_OK*) return 0 ;;
 	*)
 		err "device job gave no result. Output was:"
-		printf '%s\n' "$out" >&2
+		printf '%s\n' "$out" | say_lines '    '
 		return 1
 		;;
 	esac

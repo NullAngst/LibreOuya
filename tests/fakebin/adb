@@ -6,7 +6,8 @@ set -u
 crlf() { printf '%s\r\n' "$@"; }
 case ${1:-} in
 devices) printf 'List of devices attached\nFAKEOUYA01\tdevice\n\n'; exit 0 ;;
-push | pull | install | reboot | wait-for-device | sideload | logcat) printf 'fake adb %s\n' "$*" >>"${FAKE_ADB_LOG:-/dev/null}"; exit 0 ;;
+logcat) [ "${2:-}" = -c ] && exit 0; printf 'I/fake: log line\n'; sleep 30; exit 0 ;;
+push | pull | install | reboot | wait-for-device | sideload) printf 'fake adb %s\n' "$*" >>"${FAKE_ADB_LOG:-/dev/null}"; exit 0 ;;
 shell) shift ;;
 *) exit 0 ;;
 esac

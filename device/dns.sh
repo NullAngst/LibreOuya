@@ -13,7 +13,7 @@ UPSTREAMS="9.9.9.9 149.112.112.112"
 CACHE=2000
 EXTRA="--user=root --group=root"
 BIN=/system/bin/dnsmasq
-# dns.conf is written by ./libreouya dns setup.
+# dns.conf is written by ./LibreOuya.sh dns setup.
 # shellcheck source=/dev/null
 [ -f "$D/dns.conf" ] && . "$D/dns.conf"
 

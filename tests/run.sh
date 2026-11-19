@@ -31,6 +31,10 @@ LO_DRY=0
 LO_ANY_DEVICE=0
 # shellcheck disable=SC2034
 LO_SERIAL=''
+# shellcheck disable=SC2034
+LO_VERSION='test'
+# shellcheck source=lib/ui.sh
+. "$T_ROOT/lib/ui.sh"
 # shellcheck source=lib/core.sh
 . "$T_ROOT/lib/core.sh"
 # shellcheck source=lib/device.sh
@@ -100,16 +104,16 @@ check "hosts: empty file gets localhost" "127.0.0.1 localhost" "$got"
 chmod +x "$T_ROOT"/tests/fakebin/*
 export PATH=$T_ROOT/tests/fakebin:$PATH
 export FAKE_ADB_LOG=$T_TMP/adb.log
-out=$(bash "$T_ROOT/libreouya" status </dev/null 2>&1) || true
+out=$(bash "$T_ROOT/LibreOuya.sh" status </dev/null 2>&1) || true
 case $out in *'Firmware: 1.2.1427 (latest)'*) r=0 ;; *) r=1 ;; esac
 check "status reads firmware through CRLF output" 0 "$r"
 case $out in *'stock OUYA su'*) r=0 ;; *) r=1 ;; esac
 check "status classifies stock su" 0 "$r"
 : >"$FAKE_ADB_LOG"
-bash "$T_ROOT/libreouya" root </dev/null >/dev/null 2>&1 || true
+bash "$T_ROOT/LibreOuya.sh" root </dev/null >/dev/null 2>&1 || true
 if grep -q 'su.new' "$FAKE_ADB_LOG"; then r=1; else r=0; fi
 check "root without a terminal changes nothing" 0 "$r"
-out=$(bash "$T_ROOT/libreouya" -n recovery boot </dev/null 2>&1) || true
+out=$(bash "$T_ROOT/LibreOuya.sh" -n recovery boot </dev/null 2>&1) || true
 case $out in *'RISKY'*) r=0 ;; *) r=1 ;; esac
 check "RISKY gate shown and refused without a terminal" 0 "$r"
 
@@ -141,6 +145,25 @@ if command -v mksh >/dev/null 2>&1; then
 else
 	printf 'skip mksh device tests (mksh not installed)\n'
 fi
+
+# ---- menus: every entry maps to a real command
+# shellcheck source=lib/menu.sh
+. "$T_ROOT/lib/menu.sh"
+for e in "${LO_MENU[@]}"; do
+	c=${e%%|*}
+	c=${c%% *}
+	case $c in
+	toggle-dry-run | pick-device) r=0 ;;
+	*) if grep -q "^	$c) " "$T_ROOT/LibreOuya.sh"; then r=0; else r=1; fi ;;
+	esac
+	check "menu entry '${e%%|*}' has a command" 0 "$r"
+done
+out=$(bash "$T_ROOT/LibreOuyaTUI.sh" </dev/null 2>&1) || true
+case $out in *'needs a terminal'* | *'needs whiptail or dialog'*) r=0 ;; *) r=1 ;; esac
+check "TUI refuses to start without a terminal" 0 "$r"
+out=$(bash "$T_ROOT/LibreOuya.sh" </dev/null 2>&1) || true
+case $out in *'Choose a number'*) r=0 ;; *) r=1 ;; esac
+check "plain list draws and exits without a terminal" 0 "$r"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

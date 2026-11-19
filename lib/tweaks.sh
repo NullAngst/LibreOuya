@@ -30,7 +30,7 @@ cmd_netadb() {
 lo_install $LO_DEV_TMP/build.prop.new /system/build.prop 0644 0.0 $md5 build_prop
 rm $LO_DEV_TMP/build.prop.new
 EOF
-		ok "Takes effect after a reboot. Then: ./libreouya connect <ouya-ip>"
+		ok "Takes effect after a reboot. Then: ./LibreOuya.sh connect <ouya-ip>"
 		;;
 	off)
 		ask "Restore /system/build.prop from before LibreOuya changed it?" || return 0
@@ -38,7 +38,7 @@ EOF
 lo_restore build_prop /system/build.prop 0644 0.0 orig
 EOF
 		;;
-	*) die "usage: libreouya netadb on|off" ;;
+	*) die "usage: LibreOuya.sh netadb on|off" ;;
 	esac
 }
 
@@ -77,7 +77,7 @@ cmd_initd() {
 		fi
 		if [ "$LO_DRY" != 1 ] && ! initd_supported; then
 			err "this firmware's init.rc has no install-recovery.sh service, so the hook would never run."
-			say "Things that need boot-time start (DNS, swap) can still be started by hand: ./libreouya dns start"
+			say "Things that need boot-time start (DNS, swap) can still be started by hand: ./LibreOuya.sh dns start"
 			return 1
 		fi
 		say "Puts a hook in /system/etc/install-recovery.sh that runs /system/etc/init.d/* at boot."
@@ -87,7 +87,7 @@ cmd_initd() {
 			say "stock recovery on every boot, which would undo a flashed CWM recovery."
 			ask "Keep running the original from the hook?" && keep=1
 		fi
-		ask "Install the init.d hook? (the original file is backed up and './libreouya initd off' restores it)" || return 0
+		ask "Install the init.d hook? (the original file is backed up and './LibreOuya.sh initd off' restores it)" || return 0
 		hook=$(mktemp "${TMPDIR:-/tmp}/libreouya-hook.XXXXXX") || die "mktemp failed"
 		{
 			printf '#!/system/bin/sh\n'
@@ -130,7 +130,7 @@ if [ -e /system/etc/install-recovery-libreouya-orig.sh ]; then lo_sys_rm /system
 EOF
 		say "/system/etc/init.d is left in place; its scripts no longer run at boot."
 		;;
-	*) die "usage: libreouya initd on|off" ;;
+	*) die "usage: LibreOuya.sh initd on|off" ;;
 	esac
 }
 
@@ -198,6 +198,6 @@ lo_say "swap removed"
 EOF
 		initd_script 50libreouya-swap -remove || true
 		;;
-	*) die "usage: libreouya swap on|off" ;;
+	*) die "usage: LibreOuya.sh swap on|off" ;;
 	esac
 }

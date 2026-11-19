@@ -71,7 +71,7 @@ cmd_recovery() {
 		need_ouya
 		gate RISKY \
 			"a broken recovery leaves you without the stock firmware install path until it is restored" \
-			"./libreouya recovery restore (flashes the backup of your stock recovery taken first)" || return 0
+			"./LibreOuya.sh recovery restore (flashes the backup of your stock recovery taken first)" || return 0
 		need_recovery_backup || return 1
 		pick_recovery_img "$img" || return 0
 		to_bootloader || return 1
@@ -83,7 +83,7 @@ cmd_recovery() {
 			fb reboot || true
 		fi
 		say "On stock firmware, install-recovery.sh can rewrite the stock recovery on every boot."
-		say "If CWM disappears after a reboot, see ./libreouya initd on (it offers to stop that)."
+		say "If CWM disappears after a reboot, see ./LibreOuya.sh initd on (it offers to stop that)."
 		;;
 	restore)
 		heading "Restore the stock recovery"
@@ -100,7 +100,7 @@ cmd_recovery() {
 		fb flash recovery "$LO_SOS_BACKUP" || return 1
 		ask "Reboot to Android?" && fb reboot
 		;;
-	*) die "usage: libreouya recovery boot|flash|restore [image]" ;;
+	*) die "usage: LibreOuya.sh recovery boot|flash|restore [image]" ;;
 	esac
 }
 
@@ -108,7 +108,7 @@ cmd_recovery() {
 # through CWM's sideload, in the order given.
 cmd_rom() {
 	local z how
-	[ "$#" -gt 0 ] || die "usage: libreouya rom <zip> [zip...]   (in install order, e.g. bootmenu then ROM)"
+	[ "$#" -gt 0 ] || die "usage: LibreOuya.sh rom <zip> [zip...]   (in install order, e.g. bootmenu then ROM)"
 	for z in "$@"; do
 		[ -f "$z" ] || die "no file: $z"
 	done
@@ -116,7 +116,7 @@ cmd_rom() {
 	pick_device_soft
 	gate RISKY \
 		"a bad or wrong ROM can bootloop the OUYA; switching ROMs needs a data wipe, which deletes everything" \
-		"restore the CWM backup you make in step 1, or restore stock recovery and run ./libreouya flash-stock" || return 0
+		"restore the CWM backup you make in step 1, or restore stock recovery and run ./LibreOuya.sh flash-stock" || return 0
 	say "Order matters. Common order for CyanogenMod 11: OUYA bootmenu zip, then the ROM, then keylayouts."
 	say "LibreOuya does not download ROMs. Use files you got from the ROM's own page and checked."
 	for z in "$@"; do
@@ -160,13 +160,13 @@ cmd_rom() {
 		act adb_auto sideload "$z" || { err "sideload of $z failed; read the TV before going on"; return 1; }
 	done
 	say "All zips sent. In CWM: reboot system now. The first boot can take several minutes."
-	say "Back to stock: restore the CWM backup, or ./libreouya recovery restore then ./libreouya flash-stock."
+	say "Back to stock: restore the CWM backup, or ./LibreOuya.sh recovery restore then ./LibreOuya.sh flash-stock."
 }
 
 cmd_pmos_boot() {
 	local img=${1:-}
 	heading "Boot postmarketOS (mainline Linux)"
-	[ -f "$img" ] || die "usage: libreouya pmos-boot <boot.img built by pmbootstrap for ouya-ouya>"
+	[ -f "$img" ] || die "usage: LibreOuya.sh pmos-boot <boot.img built by pmbootstrap for ouya-ouya>"
 	pick_device_soft
 	gate DANGEROUS \
 		"this boots a different operating system kernel; it is not Android and some hardware (Wi-Fi, GPU) may not work. Nothing is written to the OUYA by this command, but anything you do inside postmarketOS (flashing, repartitioning) can wipe Android" \

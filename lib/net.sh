@@ -76,7 +76,7 @@ hosts_write() {
 	dsh 'cat /system/etc/hosts 2>/dev/null' >"$cur" || true
 	hosts_build "$names" "$ip" <"$cur" >"$new"
 	say "New /system/etc/hosts:"
-	sed 's/^/    /' "$new"
+	say_lines '    ' <"$new"
 	if ! ask "Write this to the OUYA? (the current file is backed up first)"; then
 		rm -f -- "$cur" "$new"
 		return 1
@@ -107,8 +107,8 @@ cmd_hosts() {
 	need_su
 	case ${1:-} in
 	restore) hosts_restore ;;
-	show) dsh 'cat /system/etc/hosts' ;;
-	*) die "usage: libreouya hosts show|restore" ;;
+	show) dsh 'cat /system/etc/hosts' | say_lines '    ' ;;
+	*) die "usage: LibreOuya.sh hosts show|restore" ;;
 	esac
 }
 
@@ -146,7 +146,7 @@ store_push_config() {
 	f=$(mktemp "${TMPDIR:-/tmp}/libreouya-cfg.XXXXXX") || die "mktemp failed"
 	printf 'OUYA_SERVER_URL=%s\nOUYA_STATUS_SERVER_URL=%s/api/v1/status\n' "$url" "$url" >"$f"
 	say "ouya_config.properties:"
-	sed 's/^/    /' "$f"
+	say_lines '    ' <"$f"
 	if ! ask "Write it to /sdcard/ouya_config.properties? (any existing one is backed up)"; then
 		rm -f -- "$f"
 		return 1
@@ -206,7 +206,7 @@ cmd_store() {
 			hosts_restore
 		fi
 		;;
-	*) die "usage: libreouya store on|off" ;;
+	*) die "usage: LibreOuya.sh store on|off" ;;
 	esac
 }
 

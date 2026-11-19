@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # LibreOuya core helpers: output, logging, prompts, gates, hashing, paths.
-# Sourced by ./libreouya. Not meant to run on its own.
+# Sourced by ./LibreOuya.sh. Not meant to run on its own.
 
 # ---- paths ------------------------------------------------------------------
 
@@ -10,7 +10,7 @@ lo_init_paths() {
 	LO_CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/libreouya
 	LO_RUN=$LO_STATE/runs/$(date '+%Y-%m-%d_%H%M%S')
 	mkdir -p -- "$LO_CACHE" "$LO_STATE" "$LO_CONFIG" "$LO_RUN" || {
-		printf 'libreouya: cannot create %s\n' "$LO_STATE" >&2
+		printf 'LibreOuya.sh: cannot create %s\n' "$LO_STATE" >&2
 		exit 1
 	}
 	LO_LOG=$LO_RUN/libreouya.log
@@ -39,21 +39,33 @@ log() {
 say() {
 	printf '%s\n' "$*"
 	log "$*"
+	ui_note "$*"
+}
+
+# say_lines PREFIX : say every line of stdin with a prefix.
+say_lines() {
+	local line
+	while IFS= read -r line; do
+		say "${1:-}$line"
+	done
 }
 
 ok() {
 	printf '%s%s%s\n' "$C_GRN" "$*" "$C_OFF"
 	log "OK: $*"
+	ui_note "$*"
 }
 
 warn() {
 	printf '%sWarning:%s %s\n' "$C_YEL" "$C_OFF" "$*" >&2
 	log "WARN: $*"
+	ui_note "Warning: $*"
 }
 
 err() {
 	printf '%sError:%s %s\n' "$C_RED" "$C_OFF" "$*" >&2
 	log "ERROR: $*"
+	ui_note "Error: $*"
 }
 
 die() {
@@ -64,6 +76,7 @@ die() {
 heading() {
 	printf '\n%s== %s ==%s\n' "$C_BLD" "$*" "$C_OFF"
 	log "== $*"
+	ui_note "== $* =="
 }
 
 # Show a command before it runs. Every command that touches the device or the
@@ -80,6 +93,7 @@ show_cmd() {
 	q=$(printf '%q ' "$@")
 	printf '%s$ %s%s\n' "$C_BLU" "${q% }" "$C_OFF"
 	log "\$ ${q% }"
+	ui_note "\$ ${q% }"
 }
 
 # Run a command that changes something. In dry-run mode it is only shown.
@@ -87,12 +101,15 @@ act() {
 	show_cmd "$@"
 	if [ "$LO_DRY" = 1 ]; then
 		printf '  (dry run, not executed)\n'
+		ui_note "  (dry run, not executed)"
 		return 0
 	fi
 	"$@"
 }
 
 # ---- prompts ----------------------------------------------------------------
+# Plain terminal prompts by default. In TUI mode (LibreOuyaTUI.sh) the same
+# calls open whiptail or dialog boxes, see lib/ui.sh.
 
 # All prompts read from the terminal. With no terminal there is nobody to say
 # yes, so every ask fails closed.
@@ -113,12 +130,18 @@ read_tty() {
 # ask "Question" -> 0 on yes. Default is always no.
 ask() {
 	local reply
-	printf '%s%s%s [y/N] ' "$C_BLD" "$1" "$C_OFF"
-	if ! read_tty reply; then
-		printf '\n'
+	if ! lo_tty_ok; then
 		log "ASK (no terminal, treated as no): $1"
+		printf '%s [y/N] (no terminal: no)\n' "$1"
 		return 1
 	fi
+	if [ "$LO_UI" = tui ]; then
+		if tui_ask "$1"; then log "ASK: $1 -> yes"; return 0; fi
+		log "ASK: $1 -> no"
+		return 1
+	fi
+	printf '%s%s%s [y/N] ' "$C_BLD" "$1" "$C_OFF"
+	read_tty reply || reply=''
 	log "ASK: $1 -> $reply"
 	case $reply in
 	y | Y | yes | YES | Yes) return 0 ;;
@@ -126,9 +149,15 @@ ask() {
 	esac
 }
 
-# Pause until Enter. Returns 1 if the user typed q.
+# Pause until the user is ready. Returns 1 if they stop.
 pause() {
 	local reply
+	lo_tty_ok || return 1
+	if [ "$LO_UI" = tui ]; then
+		tui_pause "${1:-Ready?}" && { log "PAUSE: ${1:-} -> continue"; return 0; }
+		log "PAUSE: ${1:-} -> stop"
+		return 1
+	fi
 	printf '%s [Enter to continue, q to stop] ' "${1:-Ready?}"
 	read_tty reply || return 1
 	log "PAUSE: ${1:-} -> $reply"
@@ -141,6 +170,13 @@ pause() {
 # choose "Prompt" option1 option2 ... -> prints the chosen option.
 choose() {
 	local prompt=$1 i=1 reply opt
+	lo_tty_ok || return 1
+	if [ "$LO_UI" = tui ]; then
+		reply=$(tui_choose "$@") || { log "CHOOSE: $prompt -> cancel"; return 1; }
+		log "CHOOSE: $prompt -> $reply"
+		printf '%s\n' "$reply"
+		return 0
+	fi
 	shift
 	for opt in "$@"; do
 		printf '  %d) %s\n' "$i" "$opt" >&2
@@ -158,29 +194,47 @@ choose() {
 
 prompt_value() {
 	local reply
-	printf '%s%s%s [%s] ' "$C_BLD" "$1" "$C_OFF" "${2:-}" >&2
-	read_tty reply || return 1
-	[ -n "$reply" ] || reply=${2:-}
+	lo_tty_ok || return 1
+	if [ "$LO_UI" = tui ]; then
+		reply=$(tui_input "$1" "${2:-}") || return 1
+	else
+		printf '%s%s%s [%s] ' "$C_BLD" "$1" "$C_OFF" "${2:-}" >&2
+		read_tty reply || return 1
+		[ -n "$reply" ] || reply=${2:-}
+	fi
 	log "VALUE: $1 -> $reply"
 	printf '%s\n' "$reply"
+}
+
+# confirm_word WORD "text" -> 0 only when exactly WORD is typed.
+confirm_word() {
+	local reply
+	if ! lo_tty_ok; then
+		log "CONFIRM $1 refused (no terminal)"
+		printf '%s\n(no terminal: cancelled)\n' "$2"
+		return 1
+	fi
+	if [ "$LO_UI" = tui ]; then
+		if tui_word "$1" "$2"; then log "CONFIRM $1 -> typed"; return 0; fi
+		log "CONFIRM $1 -> not typed"
+		return 1
+	fi
+	printf '%s\nType %s%s%s to continue, anything else cancels: ' "$2" "$C_BLD" "$1" "$C_OFF"
+	read_tty reply || reply=''
+	log "CONFIRM $1 -> $reply"
+	[ "$reply" = "$1" ]
 }
 
 # gate WORD "what can go wrong" "how to get back"
 # For RISKY and DANGEROUS steps. Only the exact word, typed, continues.
 gate() {
-	local word=$1 risk=$2 back=$3 reply color=$C_YEL
+	local word=$1 color=$C_YEL
 	[ "$word" = DANGEROUS ] && color=$C_RED
-	printf '\n%s%s%s\n' "$color" "==== $word ====" "$C_OFF"
-	printf 'What can go wrong: %s\n' "$risk"
-	printf 'How to get back:   %s\n' "$back"
-	printf 'Type %s%s%s to continue, anything else cancels: ' "$C_BLD" "$word" "$C_OFF"
-	if ! read_tty reply; then
-		printf '\n'
-		log "GATE $word refused (no terminal)"
-		return 1
-	fi
-	log "GATE $word -> $reply"
-	[ "$reply" = "$word" ]
+	printf '\n%s==== %s ====%s\n' "$color" "$word" "$C_OFF"
+	log "GATE $word shown"
+	confirm_word "$word" "==== $word ====
+What can go wrong: $2
+How to get back:   $3"
 }
 
 # ---- dependencies -----------------------------------------------------------

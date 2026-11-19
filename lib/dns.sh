@@ -57,7 +57,7 @@ cmd_dns() {
 	start | stop | restart | status) dns_ctl "$action" ;;
 	test) dns_test ;;
 	remove) dns_remove ;;
-	*) die "usage: libreouya dns setup|update|start|stop|restart|status|test|remove" ;;
+	*) die "usage: LibreOuya.sh dns setup|update|start|stop|restart|status|test|remove" ;;
 	esac
 }
 
@@ -65,7 +65,7 @@ dns_ctl() {
 	need_ouya
 	need_su
 	root_job "dns $1" <<EOF
-[ -f $LO_DNS_DIR/dns.sh ] || lo_fail "DNS is not set up; run ./libreouya dns setup"
+[ -f $LO_DNS_DIR/dns.sh ] || lo_fail "DNS is not set up; run ./LibreOuya.sh dns setup"
 sh $LO_DNS_DIR/dns.sh $1 | while IFS= read -r l; do lo_say "\$l"; done
 EOF
 }
@@ -119,13 +119,13 @@ EOF
 			rm -f -- "$conf"
 		fi
 	else
-		say "No init.d hook, so dnsmasq will not start after a reboot. Either ./libreouya initd on"
-		say "and run setup again, or ./libreouya dns start after each reboot."
+		say "No init.d hook, so dnsmasq will not start after a reboot. Either ./LibreOuya.sh initd on"
+		say "and run setup again, or ./LibreOuya.sh dns start after each reboot."
 	fi
 	say "OUYA addresses:"
-	dns_device_ip | sed 's/^/    /'
+	dns_device_ip | say_lines '    '
 	say "Give the OUYA a fixed address (DHCP reservation on the router), then point clients or the"
-	say "router's DNS at it. Test from this PC with: ./libreouya dns test"
+	say "router's DNS at it. Test from this PC with: ./LibreOuya.sh dns test"
 }
 
 dns_update() {
@@ -136,7 +136,7 @@ dns_update() {
 	allow=$(dns_allow_file)
 	heading "Blocklist update"
 	say "Lists from $lists:"
-	sed -n '/^[^#]/s/^/    /p' "$lists"
+	sed -n '/^[^#]/p' "$lists" | say_lines '    '
 	ask "Download these and build the blocklist?" || return 0
 	tmp=$(mktemp -d "${TMPDIR:-/tmp}/libreouya-bl.XXXXXX") || die "mktemp failed"
 	n=0
@@ -173,11 +173,11 @@ dns_test() {
 	[ -n "$ip" ] || die "could not find the OUYA's IP"
 	say "Querying $ip for example.com (should resolve) and doubleclick.net (should be 0.0.0.0 if listed):"
 	if command -v dig >/dev/null 2>&1; then
-		dig +short @"$ip" example.com A
-		dig +short @"$ip" doubleclick.net A
+		dig +short @"$ip" example.com A | say_lines '  example.com: '
+		dig +short @"$ip" doubleclick.net A | say_lines '  doubleclick.net: '
 	elif command -v nslookup >/dev/null 2>&1; then
-		nslookup example.com "$ip"
-		nslookup doubleclick.net "$ip"
+		nslookup example.com "$ip" | say_lines '  '
+		nslookup doubleclick.net "$ip" | say_lines '  '
 	else
 		die "need dig or nslookup on this PC"
 	fi

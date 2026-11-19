@@ -4,7 +4,7 @@
 cmd_install() {
 	local p f
 	need_ouya
-	[ "$#" -gt 0 ] || die "usage: libreouya install <file.apk|folder> ..."
+	[ "$#" -gt 0 ] || die "usage: LibreOuya.sh install <file.apk|folder> ..."
 	for p in "$@"; do
 		if [ -d "$p" ]; then
 			for f in "$p"/*.apk; do
@@ -32,7 +32,7 @@ cmd_bundle() {
 		return 0
 	fi
 	file=$LO_ROOT/bundles/$name.list
-	[ -f "$file" ] || die "no bundle '$name' (run ./libreouya bundle to list them)"
+	[ -f "$file" ] || die "no bundle '$name' (run ./LibreOuya.sh bundle to list them)"
 	need_ouya
 	need_cmds jq
 	heading "Bundle: $name"
@@ -101,7 +101,7 @@ cmd_retroarch() {
 cmd_push_roms() {
 	local dir=${1:-} sys=${2:-} f
 	need_ouya
-	[ -d "$dir" ] && [ -n "$sys" ] || die "usage: libreouya push-roms <local folder> <system name, e.g. psx>"
+	[ -d "$dir" ] && [ -n "$sys" ] || die "usage: LibreOuya.sh push-roms <local folder> <system name, e.g. psx>"
 	safe_value "$sys" || die "system name may only use letters, digits, . _ -"
 	ask "Copy everything in $dir to /sdcard/RetroArch/roms/$sys/ on the OUYA?" || return 0
 	act adb_dev shell mkdir -p "/sdcard/RetroArch/roms/$sys"
@@ -115,7 +115,7 @@ cmd_push_roms() {
 cmd_push_bios() {
 	local dir=${1:-} f
 	need_ouya
-	[ -d "$dir" ] || die "usage: libreouya push-bios <local folder>"
+	[ -d "$dir" ] || die "usage: LibreOuya.sh push-bios <local folder>"
 	ask "Copy everything in $dir to /sdcard/RetroArch/system/ on the OUYA?" || return 0
 	act adb_dev shell mkdir -p /sdcard/RetroArch/system
 	for f in "$dir"/*; do
