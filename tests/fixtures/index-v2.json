@@ -1,0 +1,11 @@
+{"repo":{},"packages":{
+ "org.videolan.vlc":{"versions":{
+  "a":{"file":{"name":"/org.videolan.vlc_1.apk","sha256":"aaa","size":100},"manifest":{"versionCode":1,"versionName":"1.0","usesSdk":{"minSdkVersion":9},"nativecode":["armeabi-v7a"]}},
+  "b":{"file":{"name":"/org.videolan.vlc_2.apk","sha256":"bbb","size":200},"manifest":{"versionCode":2,"versionName":"2.0","usesSdk":{"minSdkVersion":14},"nativecode":["armeabi-v7a","x86"]}},
+  "c":{"file":{"name":"/org.videolan.vlc_3.apk","sha256":"ccc","size":300},"manifest":{"versionCode":3,"versionName":"3.0","usesSdk":{"minSdkVersion":17},"nativecode":["armeabi-v7a"]}},
+  "d":{"file":{"name":"/org.videolan.vlc_4.apk","sha256":"ddd","size":400},"manifest":{"versionCode":4,"versionName":"4.0","usesSdk":{"minSdkVersion":9},"nativecode":["arm64-v8a"]}}}},
+ "fr.neamar.kiss":{"versions":{
+  "x":{"file":{"name":"/fr.neamar.kiss_5.apk","sha256":"kkk","size":50},"manifest":{"versionCode":5,"versionName":"5","usesSdk":{"minSdkVersion":15}}}}},
+ "too.new":{"versions":{
+  "y":{"file":{"name":"/too.new_1.apk","sha256":"nnn","size":5},"manifest":{"versionCode":1,"versionName":"1","usesSdk":{"minSdkVersion":21}}}}}
+}}

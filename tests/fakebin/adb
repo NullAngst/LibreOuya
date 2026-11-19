@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Fake adb for tests. Answers like an OUYA on firmware 1.2.1427 with stock su,
+# including the CRLF line endings and missing exit codes of Android 4.1.
+set -u
+[ "${1:-}" = -s ] && shift 2
+crlf() { printf '%s\r\n' "$@"; }
+case ${1:-} in
+devices) printf 'List of devices attached\nFAKEOUYA01\tdevice\n\n'; exit 0 ;;
+push | pull | install | reboot | wait-for-device | sideload | logcat) printf 'fake adb %s\n' "$*" >>"${FAKE_ADB_LOG:-/dev/null}"; exit 0 ;;
+shell) shift ;;
+*) exit 0 ;;
+esac
+cmd=$*
+printf 'shell: %s\n' "$cmd" >>"${FAKE_ADB_LOG:-/dev/null}"
+case $cmd in
+*'getprop ro.product.model'*) crlf 'OUYA Console' ;;
+*'getprop ro.product.device'*) crlf 'ouya_1_1' ;;
+*'getprop ro.build.display.id'*) crlf 'OUYA-1.2.1427-r1 test' ;;
+*'getprop ro.build.version.sdk'*) crlf '16' ;;
+*'getprop ro.build.version.incremental'*) crlf '1427' ;;
+*'getprop service.adb.tcp.port'*) crlf '' ;;
+*'getprop'*) crlf '' ;;
+*'md5sum /system/xbin/su'*) crlf '450f57ac1700be5387bc76d01f59dd40  /system/xbin/su' ;;
+*'su <'*) crlf 'uid=0(root) gid=0(root)' ;;
+*'cat /proc/version'*) crlf 'Linux version 3.1.10-tegra (fake)' ;;
+*'cat /sdcard/ouya_config.properties'*) ;;
+*'cat /system/etc/hosts'*) crlf '127.0.0.1 localhost' ;;
+*'dnsmasq --version'*) crlf 'Dnsmasq version 2.51  Copyright (C) 2000-2009 Simon Kelley' ;;
+*'netcfg'*) crlf 'lo       UP    127.0.0.1/8   0x00000049 00:00:00:00:00:00' 'eth0     UP    192.168.1.50/24  0x00001043 00:11:22:33:44:55' ;;
+*'ls /dev/block/platform/sdhci-tegra.3/by-name/'*) crlf 'APP' 'CAC' 'LNX' 'MSC' 'SOS' 'UDA' 'USP' ;;
+*'df /data'*) crlf 'Filesystem Size Used Free Blksize' '/data 4G 1G 3G 4096' ;;
+*) ;;
+esac
+crlf '__LO_RC=0'

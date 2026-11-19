@@ -1,0 +1,6 @@
+# File manager, launcher and browser
+# Format: fdroid <package>[|<fallback package>...] <label>
+# The newest F-Droid build that supports Android 4.1 (API 16) and 32-bit ARM is used.
+fdroid com.amaze.filemanager|org.openintents.filemanager|com.ghostsq.commander File manager
+fdroid fr.neamar.kiss|com.benny.openlauncher Launcher (the OUYA launcher stays; needed for store games)
+fdroid org.mozilla.fennec_fdroid|acr.browser.lightning Web browser

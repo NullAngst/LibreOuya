@@ -1,0 +1,3 @@
+# VLC for local files and DLNA/UPnP shares (Plex's Android app needs 5.0+)
+# Format: fdroid <package>[|<fallback package>...] <label>
+fdroid org.videolan.vlc VLC media player

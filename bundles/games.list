@@ -1,0 +1,5 @@
+# Light open-source games that run on a TV with a controller or d-pad
+# Format: fdroid <package>[|<fallback package>...] <label>
+fdroid org.blockinger.game Blockinger (falling blocks)
+fdroid com.watabou.pixeldungeon Pixel Dungeon (roguelike)
+fdroid com.shatteredpixel.shatteredpixeldungeon Shattered Pixel Dungeon (roguelike)

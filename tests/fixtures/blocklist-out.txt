@@ -1,0 +1,4 @@
+0.0.0.0 adblock.example.org
+0.0.0.0 ads.example.com
+0.0.0.0 plain.example.io
+0.0.0.0 tracker.example.net

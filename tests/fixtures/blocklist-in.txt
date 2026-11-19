@@ -1,0 +1,10 @@
+# comment
+0.0.0.0 ads.example.com
+127.0.0.1 localhost
+127.0.0.1 Tracker.Example.NET # trailing
+||adblock.example.org^
+plain.example.io
+0.0.0.0 0.0.0.0
+::1 ip6-localhost
+not a domain line here
+bad_

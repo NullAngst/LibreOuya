@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Fake fastboot for tests: one device in fastboot mode.
+case ${1:-} in
+devices) printf 'FAKEFB01\tfastboot\n' ;;
+*) printf 'fake fastboot %s\n' "$*" >>"${FAKE_ADB_LOG:-/dev/null}" ;;
+esac
